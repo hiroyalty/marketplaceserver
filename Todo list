@@ -1,0 +1,49 @@
+All neccessary added functionailty must be done especially for wasy management by admin
+
+1. update project schema
+on addition of additional documents, update the projectdocs field.
+2. try to separate skillset schema for both project and users to use.
+3. member apply for a project.
+3. enter into the main crux: a listing of all projects by category(and sub categories): especially
+if not yet awarded.
+4. a listing of my ongoing projects(projects awarded to me.) can do an update on status
+5. a listing of my finished and delivered project(just a view.)
+5. a listing of ongoing created projects(projects I created[for employer]) can do many update.(not title), and not change awardee.
+6. a listing of finished and delivered project(just a view.)
+7. a listing of all project applicants (a view listing). sorted according to match with requirements and if not
+already working on a project.
+8. award a project to a member.
+9. 
+
+
+Project fileds
+===================
+title
+description
+skillrequirement
+projectdocs **
+postedBy
+awardedTo **
+applicantsList **
+numofapplicants **
+location
+status
+datepublished
+applicationdeadline
+dateupdated
+employerfeedback **
+awardeefeedback **
+
+
+
+
+PROJECT CATEGORIES
+==================
+1. Databases
+2. Programming
+3. Networking
+4. Operating Systems
+5. Cloud Computing
+6. Embedded Systems
+7. Mobile Development
+8. 
