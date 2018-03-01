@@ -60,11 +60,11 @@ exports.delfile = function (dfilename,callback) {
 };
 
 /*************for multer image upload***********************/
-//dynamic image destination set up multer
+//dynamic profile images destination set up multer for all users
 var storage = multer.diskStorage({
     destination: (req, file, callback) => {
         var dest = null;
-        if(req.user.role == 'user' || req.user.role == 'member' || req.user.role == 'employer'){
+        if(req.user.role == 'user' || req.user.role == 'member' || req.user.role == 'employer' || req.user.role == 'admin'){
             dest = '../client/public/userfiles/' + req.user.username;
         } else {
             dest = '../client/public/img';
@@ -123,6 +123,28 @@ var storageprojectupload = multer.diskStorage({
       callback(null, las + '-' +file.originalname);
     }
 });
+// We need to have also the multer storage for admin operations if neccessary
+var adminimageoperation = multer.diskStorage({
+  destination: (req, file, callback) => {
+    var dest = '../client/public/img/banner';
+    var stat = null
+    try {
+      stat = fs.statSync(dest);
+    } catch (err) {
+      fs.mkdirSync(dest);
+    }
+    if (stat && !stat.isDirectory()) {
+          throw new Error('Directory cannot be created because an inode of a different type exists at "' + dest + '"');
+    }
+    callback(null, dest);
+  },
+  filename: (req, file, callback) => {
+      var las = req.params.btitle;
+          las = las.replace(/\s/g,'');
+    //callback(null, las + '-' +file.fieldname + path.extname(file.originalname)); //set the file name and extension
+    callback(null, las + path.extname(file.originalname));
+  }
+});
 
 // filter for image
 const imageFilter = function (req, file, cb) {
@@ -156,4 +178,5 @@ exports.uploadcert = multer({storage: storage, fileFilter: certFilter});
 //exports.uploadprojectimage = multer({storage: storageprojectupload, filter: imageFilter}).fields([{name:'projectdocfirst', maxCount:1},{name:'projectdocsecond', maxCount:1},{name:'projectdocthird', maxCount:1}]);
 exports.uploaddouble = multer({storage: storageprojectupload, filter: certFilter}).array('projectdoc[]', 4);
 exports.uploadprojectimage = multer({storage: storageprojectupload, filter: imageFilter});
+exports.adminuploadimage = multer({storage: adminimageoperation, filter: imageFilter});
 /************************MULTER ENDS ************************************/

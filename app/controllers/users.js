@@ -153,6 +153,20 @@ exports.updateuser = function(req, res, next) {
   });
 }
 
+exports.adminUpdateUser = function(req, res, next) {
+  var query = { _id: req.params.id };
+  console.log(query);
+  console.log(req.body);
+  console.log(req.bodyNotEmpty);
+  //User.findOneAndUpdate(query, { $set: req.body }, options, callback);
+  User.findOneAndUpdate(query, { $set: req.bodyNotEmpty }, {new: true}, (err, result) => {
+    if (err) return err;
+    //console.log(result);
+    let user = setUserInfo(result);
+    res.status(200).json(user);
+  });
+}
+
 exports.updateuserprojectprefs = function(req, res, next) {
   var query = { username: req.params.id };
   console.log(query);
@@ -299,10 +313,13 @@ exports.updateUsertoMember = function(req, res, next){
 
 //upload user photo, tried update did not work
 exports.uploaduserphoto = [function(req, res, next){
+  //if(req.user.picture) {
+    //console.log(req.user.picture);
   var dfilename = process.env.userdir + req.user.username + '/' + 'picture*.*';
   services.delfile(dfilename, function(err, files){
     if(err) return res.status(500).send({error: err.toString() });
-
+  //});
+//}
   var uploadx = services.upload.single('picture')
   uploadx(req, res, function(err){
     if (err) return res.status(400).send({ error: 'Only image files are allowed!'});
@@ -327,8 +344,8 @@ exports.uploaduserphoto = [function(req, res, next){
       process.env.userdir + req.user.username + '/' +"picture-small.jpg", function(err){
         if(err) return res.status(500).send({ error: 'error with upload try again later'});
       });*/
-      var userInfo = setUserInfo(updatedmember);
-      res.status(200).json(userInfo);
+      //var userInfo = setUserInfo(updatedmember);
+      res.status(200).json(updatedmember);
     })
   })
   });
@@ -369,6 +386,29 @@ exports.uploadusercoverletter = [function(req, res, next){
   var tocvicon = nufilname.split(".");
   req.user.coverlettericon = tocvicon[1];
   console.log(req.user.coverlettericon);
+  req.user.save(function(error, user) {
+    if (error) { return res.status(500).json({error: error.toString() }); }
+
+    var userInfo = setUserInfo(req.user);
+    //res.status(200).json({user: userInfo });
+    res.status(200).json(userInfo);
+  })
+  })
+}]
+
+//upload companycertificate
+exports.uploadusercompanycertificate = [function(req, res, next){
+  var uploadx = services.uploadoc.single('companycertificate')
+  uploadx(req, res, function(err){
+    if (err) return res.status(400).send({ error: 'Only word documets or pdf files are allowed!'});
+    console.log(req.file.filename);
+  //req.user.cv = req.file.filename;
+  req.user.companycertificate = process.env.SERVER_LINK + '/userfiles/' + req.user.username + '/' + req.file.filename;
+  //req.user.cv = req.file.filename;
+  var nufilname = req.file.filename;
+  var tocompanycertificateicon = nufilname.split(".");
+  req.user.companycertificateicon = tocompanycertificateicon[1];
+  console.log(req.user.companycertificateicon);
   req.user.save(function(error, user) {
     if (error) { return res.status(500).json({error: error.toString() }); }
 
@@ -545,18 +585,18 @@ exports.updateuserole = [function(req, res, next){
 })
 }]
 //apply for a project
-exports.applyForProject = function(req, res, next){
-    Project.findOne({ "_id": req.params.projectid, "applicantsList": { $in : [ req.user._id ]}}, function(err, cproject) {
+exports.applyForProject = function(req, res, next) {
+    Project.findOne({ "_id": req.params.projectId, "applicantsList": { $in : [ req.user._id ]}}, function(err, cproject) {
         if (err){ return res.status(500).send({error: err.toString()});  }
         if(!cproject) {
-            Project.findByIdAndUpdate({"_id": req.params.projectid}, { $inc : { numofapplicants: 1}, $addToSet: { applicantsList: req.user._id  }
+            Project.findByIdAndUpdate({"_id": req.params.projectId}, { $inc : { numofapplicants: 1}, $addToSet: { applicantsList: req.user._id  }
                 }, { new: true } ).exec(function(err, project) {
                 if (err){ return res.status(500).send({error: err.toString()}); }
                 if(project) { res.status(201).json({message: 'Project application succesfull'}) };
             })
         }
      else {
-        res.status(200).json({message: 'You already applied for this Project'})
+        res.status(400).json({message: 'You already applied for this Project'})
     }
     })
 }
