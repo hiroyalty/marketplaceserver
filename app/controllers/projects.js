@@ -650,7 +650,7 @@ exports.deletefile = function(req, res, next){
   var filename = req.params.filename;
   //var dfile = fullfilename.split("/");
   //var filename = dfile[5];
-  var fullfilename = 'https://localhost:3000/userfiles/' + req.user.username + '/' + filename
+  var fullfilename = process.env.SERVER_LINK + '/userfiles/' + req.user.username + '/' + filename
   //console.log(req.params.title);
   console.log(filename);
   console.log(fullfilename);
