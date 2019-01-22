@@ -11,6 +11,7 @@ const https = require('https');
 const fs = require('fs');
 //const session = require('express-session');
 const databaseConfig = require('./config/database');
+//const databaseConfig = require('database/config/database'); //
 const router = require('./app/routes');
 mongoose.Promise = global.Promise;
 
@@ -53,5 +54,5 @@ app.use(function(err, req, res, next) {
     return next();
   }
   var statusCode = err.status || 404;
-  res.status(statusCode).json(err.message || 'You break Something, check and correct');
+  res.status(statusCode).json(err.message || 'Welcome to the job market web service, contact admin to get started');
 });
