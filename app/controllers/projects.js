@@ -589,6 +589,7 @@ exports.updateprojectimage = [function(req, res, next){
 
   services.delfile(dfilename, function(err, files){
     if(err) return res.status(500).send({error: err.toString() });
+    
   var uploadx = services.uploadprojectimage.single('image')
   uploadx(req, res, function(err){
     if (err) return res.status(400).send({ error: 'Only image files are allowed!'});
