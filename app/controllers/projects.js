@@ -58,6 +58,16 @@ exports.getallProjects = function(req, res, next){
     });
 }
 
+exports.getallProjectsFrontView = function(req, res, next){
+    Project.find({status: {$nin: ['draft', 'awarded', 'finished']}}, function(err, projects) {
+        if (err){
+            res.send({ error : err.toString() });
+        }
+        if (!projects) return res.status(404).send("No Project found.");
+        res.status(200).json(projects);
+    });
+}
+
 //get all new projects, i.e with status "created"
 exports.getAllNewProjects = function(req, res, next){
     Project.find({status: 'created', applicationdeadline: { $gt: new Date() }}, function(err, projects) {
@@ -579,7 +589,6 @@ exports.updateprojectimage = [function(req, res, next){
 
   services.delfile(dfilename, function(err, files){
     if(err) return res.status(500).send({error: err.toString() });
-    
   var uploadx = services.uploadprojectimage.single('image')
   uploadx(req, res, function(err){
     if (err) return res.status(400).send({ error: 'Only image files are allowed!'});
@@ -640,7 +649,7 @@ exports.deletefile = function(req, res, next){
   var filename = req.params.filename;
   //var dfile = fullfilename.split("/");
   //var filename = dfile[5];
-  var fullfilename = 'https://localhost:3000/userfiles/' + req.user.username + '/' + filename
+  var fullfilename = process.env.SERVER_LINK + '/userfiles/' + req.user.username + '/' + filename
   //console.log(req.params.title);
   console.log(filename);
   console.log(fullfilename);

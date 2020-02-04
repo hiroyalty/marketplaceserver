@@ -11,16 +11,18 @@ const https = require('https');
 const fs = require('fs');
 //const session = require('express-session');
 const databaseConfig = require('./config/database');
+//const databaseConfig = require('database/config/database'); //
 const router = require('./app/routes');
 mongoose.Promise = global.Promise;
 
 
-const sslkey = fs.readFileSync('ssl-key.pem');
-const sslcert = fs.readFileSync('ssl-cert.pem')
+const sslkey = fs.readFileSync('privkey.pem');
+const sslcert = fs.readFileSync('fullchain.pem');
 
 const options = {
       key: sslkey,
       cert: sslcert
+      //rejectUnauthorized: false
 };
 
 //mongoose.connect(databaseConfig.url);
@@ -31,8 +33,10 @@ mongoose.connect(databaseConfig.url).then(() => {
   //next(err);
 });
 
+//process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 //app.listen(process.env.PORT || 8080); const server =
-https.createServer(options,app).listen(process.env.PORT || 5000, () => {
+//https.createServer(options,app).listen(process.env.PORT || 5000, () => {
+http.createServer(app).listen(process.env.PORT || 5000, () => {
    console.log('Started and listening on port ' + process.env.PORT);
 });
 
@@ -50,5 +54,5 @@ app.use(function(err, req, res, next) {
     return next();
   }
   var statusCode = err.status || 404;
-  res.status(statusCode).json(err.message || 'You break Something, check and correct');
+  res.status(statusCode).json(err.message || 'Welcome to the job market web service, contact admin to get started');
 });

@@ -4,6 +4,7 @@ var AuthenticationController = require('./controllers/authentication'),
     ProjectController = require('./controllers/projects'),
     ProjectCategoryController = require('./controllers/projectcategory'),
     UserCategoryController = require('./controllers/usercategory'),
+    CommentController = require('./controllers/comments'),
     BannerController = require('./controllers/frontbanner'),
     express = require('express'),
     passportService = require('../config/passport'),
@@ -33,6 +34,7 @@ module.exports = function(app){
         projectcategoryRoutes = express.Router(),
         usercategoryRoutes = express.Router(),
         projectRoutes = express.Router(),
+        commentRoutes = express.Router(),
         bannerRoutes = express.Router()
 
     // Auth Routes
@@ -166,6 +168,8 @@ module.exports = function(app){
 
     projectRoutes.get('/getall', ProjectController.getallProjects);
 
+    projectRoutes.get('/getallFrontView', ProjectController.getallProjectsFrontView);
+
     projectRoutes.get('/getOneProjectView/:id', ProjectController.getProjectByIdPreview);
 
     projectRoutes.get('/getCompletedProjectByMember/:id', ProjectController.getCompletedProjectByMember);
@@ -195,6 +199,13 @@ module.exports = function(app){
     projectRoutes.get('/getmemberprojects', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'manager', 'admin']), ProjectController.getAllMemberOngoingAndAwardedProjects);
 
     projectRoutes.get('/getnewdatabaseprojects', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'manager', 'admin']), ProjectController.getNewDatabaseProjects);
+
+    //Cooment Routes
+    apiRoutes.use('/comments', commentRoutes);
+
+    commentRoutes.get('/getAProjectComment/:id', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'manager', 'admin']), CommentController.getAProjectComments);
+
+    commentRoutes.post('/create', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'manager', 'admin']), CommentController.createComment);
 
     //Banner Routes
     apiRoutes.use('/banner', bannerRoutes);
