@@ -58,7 +58,7 @@ typings/
 .env
 
 # cert keys
-.pem
+*.pem
 
 # certain files
 /config/auth.js

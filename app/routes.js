@@ -4,6 +4,7 @@ var AuthenticationController = require('./controllers/authentication'),
     ProjectController = require('./controllers/projects'),
     ProjectCategoryController = require('./controllers/projectcategory'),
     UserCategoryController = require('./controllers/usercategory'),
+    BannerController = require('./controllers/frontbanner'),
     express = require('express'),
     passportService = require('../config/passport'),
     passport = require('passport');
@@ -31,7 +32,8 @@ module.exports = function(app){
         todoRoutes = express.Router(),
         projectcategoryRoutes = express.Router(),
         usercategoryRoutes = express.Router(),
-        projectRoutes = express.Router();
+        projectRoutes = express.Router(),
+        bannerRoutes = express.Router()
 
     // Auth Routes
     apiRoutes.use('/auth', authRoutes);
@@ -105,6 +107,8 @@ module.exports = function(app){
 
     userRoutes.put('/update', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'admin']), AuthenticationController.onlyNotEmpty(), UserController.updateuser);
 
+    userRoutes.patch('/adminUpdateUser/:id', requireAuth, AuthenticationController.roleAuthorization(['employer', 'admin']), AuthenticationController.onlyNotEmpty(), UserController.adminUpdateUser);
+
     userRoutes.put('/updateprefs/:id', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'admin']), AuthenticationController.onlyNotEmpty(), UserController.updateuserprojectprefs);
 
     //userRoutes.get('/projectprefs/:id', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'admin']), UserController.getuserprojectprefs);
@@ -121,6 +125,8 @@ module.exports = function(app){
 
     userRoutes.post('/uploadcoverletter', requireAuth, AuthenticationController.roleAuthorization(['user', 'member', 'employer', 'admin']), UserController.uploadusercoverletter);
 
+    userRoutes.post('/uploadcompanycerticate', requireAuth, AuthenticationController.roleAuthorization(['user', 'member', 'employer', 'admin']), UserController.uploadusercompanycertificate);
+
     userRoutes.delete('/deletefile/:filename', requireAuth, AuthenticationController.roleAuthorization(['user', 'member', 'employer', 'admin']), UserController.deletefile);
 
     userRoutes.get('/delfile/:filename', requireAuth, AuthenticationController.roleAuthorization(['user', 'member', 'employer', 'admin']), UserController.delfile);
@@ -129,7 +135,7 @@ module.exports = function(app){
 
     userRoutes.post('/updateuserole/:username', requireAuth, AuthenticationController.roleAuthorization(['user', 'member', 'manager', 'admin']), UserController.updateuserole);
 
-    userRoutes.get('/applyforproject/:projectid', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer','manager', 'admin']), UserController.applyForProject);
+    userRoutes.get('/applyforproject/:projectId', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer','manager', 'admin']), UserController.applyForProject);
 
     userRoutes.get('/userofferedproject', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer','manager', 'admin']), UserController.getUserOfferedProject);
 
@@ -154,29 +160,54 @@ module.exports = function(app){
 
     projectRoutes.delete('/deletefile/:id/:filename', requireAuth, AuthenticationController.roleAuthorization(['employer','manager', 'admin']), ProjectController.deletefile);
 
-    projectRoutes.get('/deleteproject/:projectid', requireAuth, AuthenticationController.roleAuthorization(['employer','manager', 'admin']), ProjectController.deleteproject);
+    projectRoutes.delete('/deleteproject/:id/:username', requireAuth, AuthenticationController.roleAuthorization(['employer','manager', 'admin']), ProjectController.deleteproject);
 
     //projectRoutes.get('/getall', requireAuth, AuthenticationController.roleAuthorization(['manager', 'admin']), ProjectController.getallProjects);
 
     projectRoutes.get('/getall', ProjectController.getallProjects);
 
+    projectRoutes.get('/getOneProjectView/:id', ProjectController.getProjectByIdPreview);
+
+    projectRoutes.get('/getCompletedProjectByMember/:id', ProjectController.getCompletedProjectByMember);
+
+    projectRoutes.get('/getOngoingProjectByMember/:id', ProjectController.getOngoingProjectByMember);
+
     projectRoutes.get('/getone/:id', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'manager', 'admin']), ProjectController.getProjectById);
 
-    projectRoutes.get('/offerproject/:projectid/:userid', requireAuth, AuthenticationController.roleAuthorization(['employer', 'manager', 'admin']), ProjectController.offerProjectToMember);
+    projectRoutes.get('/getApplicantsList/:id', requireAuth, AuthenticationController.roleAuthorization(['employer', 'manager', 'admin']), ProjectController.getApplicantsList);
 
-    projectRoutes.get('/awardproject/:projectid/:userid', requireAuth, AuthenticationController.roleAuthorization(['employer', 'manager', 'admin']), ProjectController.awardProjectToMember);
+    projectRoutes.get('/offerproject/:projectid/:userid/:username/:email', requireAuth, AuthenticationController.roleAuthorization(['member','employer', 'manager', 'admin']), ProjectController.offerProjectToMember);
 
-    projectRoutes.get('/revokeproject/:projectid/:userid', requireAuth, AuthenticationController.roleAuthorization(['employer', 'manager', 'admin']), ProjectController.revokeProjectFromMember);
+    projectRoutes.get('/awardproject/:projectid/:userid/:username/:email', requireAuth, AuthenticationController.roleAuthorization(['member','employer', 'manager', 'admin']), ProjectController.awardProjectToMember);
+
+    projectRoutes.get('/revokeproject/:projectid/:userid/:username/:email', requireAuth, AuthenticationController.roleAuthorization(['employer', 'manager', 'admin']), ProjectController.revokeProjectFromMember);
 
     projectRoutes.post('/getemployertitledprojects', requireAuth, AuthenticationController.roleAuthorization(['employer', 'manager', 'admin']), ProjectController.getProjectWithEmployerNameAndTitle);
 
     projectRoutes.get('/getemployerprojects', requireAuth, AuthenticationController.roleAuthorization(['employer', 'manager', 'admin']), ProjectController.getAllEmployerProjects);
 
-    projectRoutes.post('/getmemberprojects', requireAuth, AuthenticationController.roleAuthorization(['employer', 'manager', 'admin']), ProjectController.getAllMemberOngoingAndAwardedProjects);
-    //getting new projects by categories
-    //the database categories
+    projectRoutes.get('/getadminprojects', requireAuth, AuthenticationController.roleAuthorization(['manager', 'admin']), ProjectController.getAdminProjects);
+
+    projectRoutes.get('/getotherprojectsforadmin', requireAuth, AuthenticationController.roleAuthorization(['manager', 'admin']), ProjectController.getOtherProjectsForAdmin);
+
+    projectRoutes.get('/getemployerprojectsbyid/:id', requireAuth, ProjectController.getemployerprojectsbyid);
+
+    projectRoutes.get('/getmemberprojects', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'manager', 'admin']), ProjectController.getAllMemberOngoingAndAwardedProjects);
+
     projectRoutes.get('/getnewdatabaseprojects', requireAuth, AuthenticationController.roleAuthorization(['member', 'employer', 'manager', 'admin']), ProjectController.getNewDatabaseProjects);
 
+    //Banner Routes
+    apiRoutes.use('/banner', bannerRoutes);
+
+    bannerRoutes.get('/getbanner', BannerController.getFrontBanner);
+
+    bannerRoutes.post('/create', requireAuth, AuthenticationController.roleAuthorization(['manager', 'admin']), BannerController.createBanner);
+
+    bannerRoutes.patch('/update/:bannerid', requireAuth, AuthenticationController.roleAuthorization(['manager', 'admin']), BannerController.updateBanner);
+
+    bannerRoutes.post('/uploadImage/:btitle', requireAuth, AuthenticationController.roleAuthorization(['manager', 'admin']), BannerController.uploadbannerImage);
+
+    bannerRoutes.post('/updateImage/:btitle/:imagename', requireAuth, AuthenticationController.roleAuthorization(['manager', 'admin']), BannerController.updatebannerImage);
 
     // Set up ALL routes ****/
     app.use('/api', apiRoutes);

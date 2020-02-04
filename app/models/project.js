@@ -6,6 +6,7 @@ var ProjectSchema = new mongoose.Schema({
         required: true
     },
     titlelowercase: {type: String },
+    introDescription: {type: String},
     description: {
         type: String,
         required: true
@@ -15,6 +16,7 @@ var ProjectSchema = new mongoose.Schema({
          enum: ['individual', 'team' ],
         default: 'individual'
     },
+    diffilcultyLevel: {type: String, enum: ['begineer', 'intermediate', 'advance'] },
     bigdataNoSQL: {type: String, enum: ['none', 'begineer', 'intermediate', 'expert'] },
     RelationalDB: {type: String, enum: ['none', 'begineer', 'intermediate', 'expert'] },
     programming: {type: String, enum: ['none', 'begineer', 'intermediate', 'expert'] },
@@ -35,8 +37,9 @@ var ProjectSchema = new mongoose.Schema({
         ref: 'User'
     },
     category: { type: String },
-    awardedTo: { type: [String] },
-    applicantsList: { type: [String] },
+    awardedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    awardedToTeam: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true }],
+    applicantsList: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true }],
     numofapplicants: {
         type: Number,
         default: 0
@@ -44,10 +47,10 @@ var ProjectSchema = new mongoose.Schema({
     location: {
         type: String,
     },
-    offeredTo: { type: [String] },
+    offeredTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true }],
     status: {
         type: String,
-        enum: ['draft', 'created', 'awarded', 'ongoing', 'finished'],
+        enum: ['draft', 'created', 'offered', 'awarded', 'finished'],
         default: 'draft'
     },
     projectlifespan: {

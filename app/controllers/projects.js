@@ -3,13 +3,16 @@ const glob = require('glob');
 var Project = require('../models/project');
 var User = require('../models/user');
 var services = require('./services.js');
+const fs = require('fs');
 
 function setProjectInfo(request){
     return {
       _id: request._id,
       title: request.title,
+      introDescription: request.introDescription,
       description: request.description,
       projecttype: request.projecttype,
+      diffilcultyLevel: request.diffilcultyLevel,
       bigdataNoSQL: request.bigdataNoSQL,
       RelationalDB: request.RelationalDB,
       programming: request.programming,
@@ -26,7 +29,8 @@ function setProjectInfo(request){
       postedBy: request.postedBy,
       category: request.category,
       awardedTo: request.awardedTo,
-      applicantList: request.applicantList,
+      awardedToTeam: request.awardedToTeam,
+      applicantsList: request.applicantsList,
       numofapplicants: request.numofapplicants,
       location: request.location,
       offeredTo: request.offeredTo,
@@ -65,14 +69,65 @@ exports.getAllNewProjects = function(req, res, next){
 
 //get project by Id
 exports.getProjectById = function(req, res, next){
-    Project.findOne({"_id": req.params.id}).populate('postedBy').populate('applicantsList').exec(function(err, project) {
+    Project.findOne({"_id": req.params.id})
+      .populate('postedBy')
+      .populate('awardedTo')
+      .populate('applicantsList')
+      .exec(function(err, project) {
+    //Project.findOne({"_id": req.params.id}).populate('postedBy').exec(function(err, project) {
         if (err){ res.send({ error : err.toString() }); }
         if (!project) return res.status(404).send("No Project found.");
 
         var newproject = setProjectInfo(project);
-        //console.log(newproject);
+        console.log(newproject);
+        res.status(200).json(project);
+    });
+}
+// get project by Id without authentication
+exports.getProjectByIdPreview = function(req, res, next){
+    Project.findOne({"_id": req.params.id})
+      .populate('postedBy')
+      //.populate('applicantsList')
+      .exec(function(err, project) {
+    //Project.findOne({"_id": req.params.id}).populate('postedBy').exec(function(err, project) {
+        if (err){ res.send({ error : err.toString() }); }
+        if (!project) return res.status(404).send("No Project found.");
+
+        var newproject = setProjectInfo(project);
+        console.log(newproject);
         res.status(200).json(newproject);
     });
+}
+//to get a refresh list of all applicant to a project. note not populating offered.
+exports.getApplicantsList = function(req, res, next){
+    Project.findOne({"_id": req.params.id}, { applicantsList: 1, awardedTo: 1, offeredTo: 1,  })
+      .populate('applicantsList')
+      .populate('awardedTo')
+      .exec(function(err, project) {
+    //Project.findOne({"_id": req.params.id}).populate('postedBy').exec(function(err, project) {
+        if (err){ res.send({ error : err.toString() }); }
+        if (!project) return res.status(404).send("No Project found.");
+        console.log(project);
+        res.status(200).json(project);
+    });
+}
+//get completed project by a member getOngoingProjectByMember
+exports.getCompletedProjectByMember = function(req, res, next) {
+  Project.find({awardedTo: { $in : [ req.params.id ]} , status: 'finished'})
+    .populate('postedBy').sort({datepublished: -1}).exec(function(err, projects) {
+        if (err){ return res.status(500).send({error: err.toString()}); }
+        if(!projects) { return res.status(204).send({message: 'You have no Finished project'});  }
+        res.status(200).json(projects);
+  });
+}
+//get ongoing project by a member
+exports.getOngoingProjectByMember = function(req, res, next) {
+  Project.find({awardedTo: { $in : [ req.params.id ]} , status: 'awarded'})
+    .populate('postedBy').sort({datepublished: -1}).exec(function(err, projects) {
+        if (err){ return res.status(500).send({error: err.toString()}); }
+        if(!projects) { return res.status(204).send({message: 'You have no ongoing project'});  }
+        res.status(200).json(projects);
+  });
 }
 
 //get new database category projects. query.sort('-created').limit(12)
@@ -398,10 +453,18 @@ exports.checkforuniquetitle = function(req, res, next) {
 
 //create a project
 exports.createproject = function(req, res, next){
-  var titlelowercase = req.body.title.toLowerCase();
+  /*var uploadx = services.uploadprojectimage.single('image')
+  uploadx(req, res, function(err){
+    if (err) return res.status(400).send({ error: 'Only image files are allowed!'});
+
+  var imageurl = process.env.SERVER_LINK + '/userfiles/' + req.user.username + '/' + req.file.filename;
+  */
     try{
       var title = req.body.title;
+      var introDescription = req.body.introDescription;
       var description = req.body.description;
+      var category = req.body.category;
+      var diffilcultyLevel = req.body.diffilcultyLevel;
       var bigdataNoSQL = req.body.bigdataNoSQL;
       var RelationalDB = req.body.RelationalDB;
       var programming = req.body.programming;
@@ -422,24 +485,16 @@ exports.createproject = function(req, res, next){
         return res.status(400).json({error: 'Some vital inputs not specified!'});
     }
     var url = req.body.url;
+    var titlelowercase = req.body.title.toLowerCase();
     //var imageUrl = req.body.imageUrl;
-    console.log(title);
+    //console.log(title);
     console.log(titlelowercase);
-    //var project = new Project({ 'title': title, 'description': description})
-    //test this upload with actuallu form to be sure multiple file uploads succeed with data submission.
-    /*var filearray = [];
-    var uploadx = services.uploaddouble;
-        uploadx(req, res, function(err){
-            if (err) return res.status(400).send({ error: 'Only word documents, pdf files or image files are allowed!'});
-        var filelen = req.files.length
-        //var filearray = [];
-        for(count = 0; count < filelen; count++){
-            filearray.push(req.files[count].filename);
-        }
-  })*/
 
     var credentials = {'title': title, 'titlelowercase': titlelowercase,
+    'introDescription': introDescription,
     'description': description,
+    'category': category,
+    'diffilcultyLevel': diffilcultyLevel,
     'bigdataNoSQL': bigdataNoSQL,
     'RelationalDB': RelationalDB,
     'programming': programming,
@@ -462,23 +517,17 @@ exports.createproject = function(req, res, next){
     'applicationdeadline': applicationdeadline,
     'dateupdated': moment().format('YYYY-MM-DD')
     };
-
-    /*var query = { title: req.body.title, postedBy: req.user._id };
-
-    var uploadx = services.uploadprojectimage.single('image')
-    uploadx(req, res, function(err){
-    if (err) return res.status(400).send({ error: 'Only image files are allowed!'});
-return res.status(400).json('Title already Taken');
-    var imageupload = process.env.SERVER_LINK + '/userfiles/' + req.user.username + '/' + req.file.filename;
-        //console.log(credentials);*/
     Project.findOne({ "titlelowercase" : { $regex : new RegExp("^" + titlelowercase + '$', "i") } }, (err, titleAlreadyTaken) => {
       if (err) return res.status(400).send('Internal Error');
       if(!titleAlreadyTaken) {
+        console.log('project new confirmed');
         Project.create(credentials, function(err, project) {
           //if (err){ return res.status(500).send({error: err.toString()}); }
           if (err){ return next(err); }
-          var newproject = setProjectInfo(project);
-          res.status(200).json(newproject);
+          console.log(project)
+          //var newproject = setProjectInfo(project);
+          res.status(200).json(project);
+
     /*Project.findOneAndUpdate(query, { $set: {image: imageupload } }, {new: true}, (err, result) => {
       if (err) return err;
       //console.log(result);
@@ -498,6 +547,7 @@ return res.status(400).json('Title already Taken');
     return res.status(400).json('Title already Taken');
   }
   })
+//})
 };
 
 exports.loadprojectimage = [function(req, res, next){
@@ -513,6 +563,7 @@ exports.loadprojectimage = [function(req, res, next){
     if (err){
         return res.status(500).send({error: err.toString()});
     }
+    var newproject = setProjectInfo(project);
     res.status(200).json(project);
   })
 });
@@ -528,6 +579,7 @@ exports.updateprojectimage = [function(req, res, next){
 
   services.delfile(dfilename, function(err, files){
     if(err) return res.status(500).send({error: err.toString() });
+    
   var uploadx = services.uploadprojectimage.single('image')
   uploadx(req, res, function(err){
     if (err) return res.status(400).send({ error: 'Only image files are allowed!'});
@@ -580,7 +632,8 @@ exports.loadprojectfiles = [function(req, res, next){
   })
 });
 }]
-//deletes one in the array of projectdocs.
+//deletes one in the array of projectdocs. instead of using the req use why not use
+// the postedBy username.
 exports.deletefile = function(req, res, next){
   var query = { _id: req.params.id };
   var dfilename = null;
@@ -614,39 +667,70 @@ exports.deletefile = function(req, res, next){
 }
 
 exports.deleteproject = function(req, res, next){
-    dfilename = '../client/public/userfiles/'+req.user.username+'/';
-    var query = Project.find({_id : req.params.projectid}).select({ "projectdocs": 1, "_id": 0});
+    //dfilename = '../client/public/userfiles/'+req.user.username+'/';
+    //to delete any project additional documents
 
-    query.exec(function (err, someValue) {
+    var dfilename = '../client/public/userfiles/'+ req.params.username +'/';
+    var query = Project.find({_id : req.params.id}).select({ "projectdocs": 1, "imageUrl": 1, "_id": 0});
+
+    query.exec(function (err, retValue) {
         if (err) return next(err);
-        console.log(someValue);
-        for(count = 0; count < someValue; count++){
-            var xfil = dfilename+someValue[count];
-            console.log(xfil);
-            glob(xfil, (err,files) => {
-	            if (err) return res.status(400).send({ error : err.toString() });
-		    files.forEach((item,index,array) => {
-		    console.log(item + " found");
-	    });
-	        // Delete files
-	    files.forEach((item,index,array) => {
-		    fs.unlink(item, (err) => {
-            if (err) return res.status(400).send({ error : err.toString() });
-                console.log(item + " deleted");
-		    });
-	    });
-        });
-    }
-    })
-    Project.remove({ _id : req.params.projectid }, function(err, project) {
-        if (err){
-            return res.status(500).send({error: err.toString()});
+        //console.log(retValue[0]);
+        var returValues = retValue[0];
+        if(returValues.imageUrl) {
+          var retImage = returValues.imageUrl;
+          var splitString = retImage.toString();
+          var splitString = splitString.split("/");
+          var projectimage = splitString[5];
+          projectimage = dfilename+projectimage;
+          console.log(projectimage);
+          services.delfile(projectimage, function(err, filess){
+            if(err) return res.status(500).send({error: err.toString() });
+          })
         }
-        res.json({message: 'deleted succesfully'});
+        if(returValues.projectdocs) {
+          var retdocs = returValues.projectdocs;
+          //console.log(retdocs);
+          for(count = 0; count < retdocs.length; count++){
+            var splitedString = retdocs[count].toString();
+            var splitedString = splitedString.split("/");
+            var projectdocu = splitedString[5];
+            var xfil = dfilename+projectdocu;
+            console.log(xfil);
+            services.delfile(xfil, function(err, filess){
+              if(err) return res.status(500).send({error: err.toString() });
+            })
+          }
+        }
+
+        Project.remove({ _id : req.params.id }, function(err, project) {
+          if (err){
+              return res.status(500).send({error: err.toString()});
+          }
+          res.status(200).json({message: 'deleted succesfully'});
+      });
+      })
+    }
+
+//accept a project or award a project to member, thinking abt separting the initial
+//user busy on another project part... for easy report display on the front end.
+exports.checkUserAvailable = function(req, res, next){
+    Project.findOne({'awardedTo': req.params.userid, status: {$in:['awarded', 'ongoing']} }, function(err, checker) {
+        if (err) { return res.status(500).send({error: err.toString()});  }
+        if (checker) {
+          res.status(400).json( { message: 'User is currently working on a Project'} );
+        } else {
+          res.status(200).json( { message: 'User is available for this Project'} );
+        }
     });
-}
-//accept a project or award a project to member
+  }
+
+//this happens when a member accepts his/her offered project. and change its status to awarded.
 exports.awardProjectToMember = function(req, res, next){
+    var username = req.params.username;
+    var email = req.params.email;
+    var url = (process.env.EMAIL_URL || "https://localhost:4200");
+
     Project.findOne({'awardedTo': req.params.userid, status: {$in:['awarded', 'ongoing']} }, function(err, checker) {
         if (err) { return res.status(500).send({error: err.toString()});  }
         if (checker) {
@@ -654,30 +738,50 @@ exports.awardProjectToMember = function(req, res, next){
     }
     Project.findOne({ "_id": req.params.projectid }, { projecttype: 1, awardedTo: 1 }, function(err, proj) {
         if (err) { return res.status(500).send({error: err.toString()});  }
-        if ((proj.awardedTo != "undefined" && proj.awardedTo != null && proj.awardedTo.length > 0) && proj.projecttype == 'individual') {
-            res.status(200).json( { message: 'Project already awarded'} );
+        //check if project is already awarded.
+        if ((proj.awardedTo != "undefined" && proj.awardedTo != null ) && proj.projecttype == 'individual') {
+            res.status(400).json( { message: 'Project already awarded'} );
         } else if ((proj.awardedTo == "undefined" || proj.awardedTo == null || proj.awardedTo.length < 1) && proj.projecttype == 'individual' ) {
-            Project.findByIdAndUpdate({"_id": req.params.projectid}, { $set : {'status': 'awarded'},
-                $addToSet: { awardedTo: req.params.userid}
-            }, { new: true } ).exec(function(err, projects) {
+            Project.findByIdAndUpdate({"_id": req.params.projectid},
+            { $set : {status: 'awarded', awardedTo: req.params.userid} },
+            { new: true } ).exec(function(err, projects) {
             if (err){ return res.status(500).send({error: err.toString()}); }
-            res.status(200).json({message: 'Project succesfully awarded'});
+            //notify by mailing the member
+            var proTitle = projects.title.toUpperCase();
+            var mailOptions = {
+            from: '"Admin Market Place" <gbolaga.famodun@gmail.com>', // sender address
+            to: email, // list of receivers
+            subject: 'Market Place Award you a Project', // Subject line
+            text: 'Hello , You have been awarded a new project on Market place.', // plain text body
+            html: '<b>Hello '+ username +' </b>'+
+                    '<p>You are receiving this mail because you have been awarded a project on the Market Place platform.</p>' +
+                    '<p>kindly kindly ensure you start immediately so as to finish within the allocated timeline:<p>' +
+                    '<p>If you need anything do not hessitate to contact the employer or admin, we will be happy to help.<p/>'+
+                    '<p>Project Title: ' + proTitle + '<p/>'+
+                    '<p>If you are not a member of Market place, please ignore this email.\n</p>'+
+                    '<p>Regards,</p>'
+            };
+            services.transporter.sendMail(mailOptions, (error, info) => {
+              if (error) { return console.log(error); }
+            });
+            res.status(200).json(projects);
         })
-        } else {
-            Project.findByIdAndUpdate({"_id": req.params.projectid}, { $addToSet : { awardedTo: req.params.userid}
+      } else if (proj.projecttype == 'team'){
+            Project.findByIdAndUpdate({"_id": req.params.projectid}, { $addToSet : { awardedToTeam: req.params.userid}
             }, { new: true } ).exec(function(err, project) {
             if (err){ return res.status(500).send({error: err.toString()}); }
+            // send mail too like above if team project award succeeds.
             res.status(200).json({message: 'Project succesfully awarded'});
         })
-    }
+    } else {}
     //Project.find({"_id": req.params.projectid, "awardedTo": {$ne : null} }, function(err, project) {
     })
     })
 }
 
-//member accept a newly offered project and change its status to ongoing
+//members are offered project
 exports.offerProjectToMember = function(req, res, next) {
-    Project.findOne ({ "_id": req.params.projectid, status: {$ne : ['draft', 'ongoing', 'finished']} }, function(err, proj) {
+    Project.findOne ({ "_id": req.params.projectid, status: {$ne : ['draft', 'awarded', 'finished']} }, function(err, proj) {
         if (err) { return res.status(500).send({error: err.toString()});  }
         //if (proj) { res.status(201).json( { message: 'Project Already Offered to User'} );
         if (proj) {
@@ -687,6 +791,27 @@ exports.offerProjectToMember = function(req, res, next) {
             Project.findByIdAndUpdate({"_id": req.params.projectid}, { $set: { status: 'offered'}, $addToSet : {offeredTo: req.params.userid}
             }, { new: true } ).exec(function(err, project) {
                 if (err){ return res.status(500).send({error: err.toString()}); }
+
+            //notify by mailing the member
+            var username = req.params.username;
+            var email = req.params.email;
+            var url = (process.env.EMAIL_URL || "https://localhost:4200");
+            var proTitle = project.title.toUpperCase();
+            var mailOptions = {
+            from: '"Admin Market Place" <gbolaga.famodun@gmail.com>', // sender address
+            to: email, // list of receivers
+            subject: 'Market Place Offered you a Project', // Subject line
+            text: 'Hello , You have been offered a new project on Market place, login to accept.', // plain text body
+            html: '<b>Hello '+ username +' </b>'+
+                    '<p>You are receiving this mail because you have been offered a project on the Market Place platform.</p>' +
+                    '<p>kindly login into your account to accept the offer:<p>' +
+                    '<p>Project Title: ' + proTitle + '<p/>'+
+                    '<p>If you are not a member of Market place, please ignore this email.\n</p>'+
+                    '<p>Regards,</p>'
+            };
+            services.transporter.sendMail(mailOptions, (error, info) => {
+              if (error) { return console.log(error); }
+            });
             res.status(201).json( { message: 'User successfully Offered this Project'} );
         })
     }
@@ -697,23 +822,44 @@ exports.offerProjectToMember = function(req, res, next) {
 
 //revoke a project from a user, update the awardedTo = null and status = created. { $set : { awardedTo: [{}]
 exports.revokeProjectFromMember = function(req, res, next) {
-    Project.findOne({ "_id": req.params.projectid, "awardedTo": req.params.userid }, { projecttype: 1, awardedTo: 1 }, function(err, proj) {
-        if (err) { return res.status(500).send({error: err.toString()});  }
-        if(!proj) { return res.status(201).send({message: 'Project do not exist'});  }
-        if((proj.awardedTo == "undefined" && proj.awardedTo == null && proj.awardedTo.length < 1)){
-            return res.status(201).send({message: 'Project not previously awarded'});
-        }
-        if ((proj.awardedTo != "undefined" && proj.awardedTo != null && proj.awardedTo.length > 0) && proj.projecttype == 'individual') {
-            Project.findByIdAndUpdate({"_id": req.params.projectid}, { $pull : { awardedTo: req.params.userid}, status: 'created'
-            }, { new: true } ).exec(function(err, project) {
-            if (err){ return res.status(500).send({error: err.toString()}); }
-            res.status(201).json({message: 'Project succesfully revoked', project: project});
-        })
-    } else {
-        Project.findByIdAndUpdate({"_id": req.params.projectid}, { $pull : { awardedTo: req.params.userid},
-            }, { new: true } ).exec(function(err, proje) {
-            if (err){ return res.status(500).send({error: err.toString()}); }
-        res.status(201).json( { message: 'Project Successfully revoked'} );
+  Project.findOne({ "_id": req.params.projectid}, function(err, prolice) {
+      if (err) { return res.status(500).send({error: err.toString()});  }
+      if(!prolice) {
+        return res.status(400).send({message: 'Project do not exist'});
+      } else {
+        Project.findOne({ "_id": req.params.projectid, "awardedTo": req.params.userid }, { projecttype: 1, awardedTo: 1 }, function(err, proj) {
+            if (err) { return res.status(500).send({error: err.toString()});  }
+            if(!proj) {
+              return res.status(400).send({message: 'Project not awarded to user'});
+            } else {
+              Project.findByIdAndUpdate({"_id": req.params.projectid}, { $set : { status: 'offered', awardedTo: undefined },
+              $pull: {offeredTo: req.params.userid, applicantsList: req.params.userid}  }, { new: true } ).exec(function(err, proje) {
+                  if (err){ return res.status(500).send({error: err.toString()}); }
+
+                  //notify by mailing the member
+                  var username = req.params.username;
+                  var email = req.params.email;
+                  var url = (process.env.EMAIL_URL || "https://localhost:4200");
+                  var proTitle = proje.title.toUpperCase();
+                  var mailOptions = {
+                  from: '"Admin Market Place" <gbolaga.famodun@gmail.com>', // sender address
+                  to: email, // list of receivers
+                  subject: 'Market Place Revoke your Project', // Subject line
+                  text: 'Hello , You have been removed from a project on Market place. login to check.', // plain text body
+                  html: '<b>Hello '+ username +' </b>'+
+                          '<p>You are receiving this mail because you have been removed from a project on the Market Place platform.</p>' +
+                          '<p>kindly login into your account to check the details:<p>' +
+                          '<p>Project Title: ' + proTitle + '<p/>'+
+                          '<p>If you are not a member of Market place, please ignore this email.\n</p>'+
+                          '<p>Regards,</p>'
+                  };
+                  services.transporter.sendMail(mailOptions, (error, info) => {
+                    if (error) { return console.log(error); }
+                  });
+                  res.status(200).json(proje);
+            })
+      }
+
     })
     }
     })
@@ -732,6 +878,15 @@ exports.getProjectWithEmployerNameAndTitle = function(req, res, next) {
     res.status(200).json(projects);
     })
     })
+}
+exports.getemployerprojectsbyid = function(req, res, next) {
+  //Project.find({"postedBy": req.params.id} ).populate('postedBy')
+  Project.find({"postedBy": req.params.id, status: {$ne: 'draft'}} ).populate('postedBy')
+      .sort({datepublished: -1}).exec(function(err, projects) {
+      if (err){ return res.status(500).send({error: err.toString()}); }
+      if(!projects.length) { return res.status(500).send({message: 'This employer ' + req.user.username+ ' has no project'});  }
+      res.status(200).json(projects);
+  })
 }
 //get projects by employer searching with username, sort by datepublished
 exports.getAllEmployerProjects = function(req, res, next) {
@@ -760,8 +915,54 @@ exports.getAllEmployerProjects = function(req, res, next) {
     }
 }
 
-//get projects awarded to member using member username sort by datepublished.
+exports.getAdminProjects = function(req, res, next) {
+  var userdetail = req.body.username;
+  if(userdetail) {
+    User.findOne({ "username": userdetail, "role": "admin" }, function(err, user) {
+        if (err) { return res.status(500).send({error: err.toString()});  }
+        if (!user) { return res.status(201).send({message: 'This admin does not exist'});  }
+
+      Project.find({"postedBy": req.user._id, status: {$ne: 'draft'}} ).populate('postedBy')
+      //Project.find({"postedBy": user._id, status: {$ne: 'draft'}} ).populate('postedBy')
+          .sort({datepublished: -1}).exec(function(err, projects) {
+          if (err){ return res.status(500).send({error: err.toString()}); }
+          if(!projects.length) { return res.status(201).send({message: 'This employer ' + req.user.username+ ' has no project'});  }
+      res.status(200).json(projects);
+      })
+    })
+  } else {
+      Project.find({"postedBy": req.user._id} ).populate('postedBy')
+      //Project.find({"postedBy": user._id, status: {$ne: 'draft'}} ).populate('postedBy')
+          .sort({datepublished: -1}).exec(function(err, projects) {
+          if (err){ return res.status(500).send({error: err.toString()}); }
+          if(!projects.length) { return res.status(201).send({message: 'This admin ' + req.user.username+ ' has no project'});  }
+      res.status(200).json(projects);
+      })
+    }
+}
+
+exports.getOtherProjectsForAdmin = function(req, res, next) {
+    Project.find({postedBy: {$ne : req.user._id}, status: {$ne: 'draft'}} ).populate('postedBy')
+    //Project.find({"postedBy": user._id, status: {$ne: 'draft'}} ).populate('postedBy')
+        .sort({datepublished: -1}).exec(function(err, projects) {
+        if (err){ return res.status(500).send({error: err.toString()}); }
+        if(!projects.length) { return res.status(201).send({message: 'This admin ' + req.user.username+ ' has no project'});  }
+    res.status(200).json(projects);
+  })
+}
+//get projects awarded to member using member username sort by datepublished
 exports.getAllMemberOngoingAndAwardedProjects = function(req, res, next) {
+    //Project.find({$or: [{'offeredTo': { $in: [ user._id]}}, {'awardedTo': { $in: [ user._id ] } }],"status": { $in: [ 'awarded', 'ongoing' ] }
+    Project.find({$or: [{'offeredTo': { $in : [req.user._id ] } }, {'awardedTo': { $in : [req.user._id ] }} ] } ).populate('postedBy').sort({datepublished: -1})
+        .exec(function(err, projects) {
+        if (err){ return res.status(500).send({error: err.toString()}); }
+        if(!projects.length) { return res.status(201).send({message: 'This member ' + req.body.username+ ' has no project'});  }
+        //return res.status(201).send({message: 'This member ' + req.body.username+ ' has no project'});
+        res.status(200).json(projects);
+    });
+}
+
+/*exports.getAllMemberOngoingAndAwardedProjects = function(req, res, next) {
     User.findOne({ "username": req.body.username, "role": "member" }, function(err, user) {
         if (err) { return res.status(500).send({error: err.toString()});  }
         if (!user) { return res.status(201).send({message: 'This member does not exist'});  }
@@ -774,7 +975,7 @@ exports.getAllMemberOngoingAndAwardedProjects = function(req, res, next) {
         res.status(200).json(projects);
     })
     })
-}
+}*/
 //get member all finished projects.
 exports.getAllMemberFinishedProject = function(req, res, next) {
     User.findOne({ 'username': req.body.username, role: 'member' }, function(err, user) {
